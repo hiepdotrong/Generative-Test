@@ -6,33 +6,52 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 # Model Generator
+# input: tensor1, tensor2
+# shape of input tensor = 3x512x512
+# output: tensor3
+# shape of output tensor =
+# Model Generator
+from torchvision import transforms
+import torch
+import torch.nn as nn
+from PIL import Image
+
+img_to_tensor = transforms.ToTensor()
+tensor_to_img = transforms.ToPILImage()
+center_crop = transforms.CenterCrop(512)
+
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
         
         self.encoder = nn.Sequential(
-            nn.Conv2d(3, 6, 3), # 630x630x3 -> 628x628x6
+            nn.Conv2d(3, 6, 3), # 3x512x512 -> 6x510x510
             nn.ReLU(),
-            nn.MaxPool2d(2,2), # 628x628x6 -> 314x314x6
-            nn.Conv2d(6, 16, 3), # 314x314x6 -> 312x312x16
+            nn.MaxPool2d(2,2), # 6x510x510 -> 6x255x255
+            nn.Conv2d(6, 16, 3), # 6x255x255 -> 16x253x253
             nn.ReLU(),
-            nn.MaxPool2d(2,2), # 312x312x16 -> 156x156x16
-            nn.Conv2d(16, 32, 3), # 156x156x16-> 154x154x32
+            nn.MaxPool2d(2,2,padding=1), # 16x253x253 -> 16x127x127
+            nn.Conv2d(16, 32, 3), # 16x127x127 -> 32x125x125
             nn.ReLU(),
-            nn.MaxPool2d(2,2), # 154x154x32-> 77x77x32   
-            nn.Conv2d(32, 64, 3, padding=1), # 77x77x32-> 76x76x64
+            nn.MaxPool2d(2,2,padding=1), # 32x125x125 -> 32x63x63    
+            nn.Conv2d(32, 64, 3, padding=1), # 32x63x63 -> 64x61x61 
             nn.ReLU(),
-            nn.MaxPool2d(2,2), # 76x76x64-> 38x38x64
+            nn.MaxPool2d(2,2,padding=1), # 64x32x32-> 64x32x32
         )
 
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(64, 32, 5, stride=3, padding=0),  # b, 8, 15, 15
-            nn.LeakyReLU(True),
-            nn.ConvTranspose2d(32, 16, 5, stride=3, padding=0),  # b, 8, 15, 15
-            nn.LeakyReLU(True),
-            nn.ConvTranspose2d(16, 8, 7, stride=3, padding=0,output_padding=1),  # b, 1, 28, 28
-            nn.LeakyReLU(True),
-            nn.ConvTranspose2d(8,3, 7, stride=1, padding=0),  # b, 1, 28, 28
+            nn.ConvTranspose2d(64,32,3,stride=4),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 16, 4, stride=2),  
+            nn.ReLU(),
+            nn.ConvTranspose2d(16, 8, 5, stride=2), 
+            nn.ReLU(),
+            nn.ConvTranspose2d(8,3, 6, stride=1),
+            nn.Sigmoid()
         )
     def forward(self, x, y):
-        return self.decoder((self.encoder(x) + self.encoder(y))/2) 
+        tensor1 = self.decoder((self.encoder(x) + self.encoder(y))/2)
+        img1 = tensor_to_img(tensor1)
+        img2 = center_crop(img1)
+        tensor2 = img_to_tensor(img2)
+        return tensor2
