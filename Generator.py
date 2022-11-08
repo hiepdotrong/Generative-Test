@@ -1,3 +1,10 @@
+import torch
+import torch.nn as nn 
+from torchvision import transforms
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+
 # Model Generator
 class Generator(nn.Module):
     def __init__(self):
