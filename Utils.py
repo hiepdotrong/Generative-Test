@@ -6,6 +6,7 @@ import torchvision
 import torch.nn as nn
 from torchvision.utils import save_image
 from scipy.stats import truncnorm
+import config 
 
 def gradient_penalty(critic, real, fake, alpha, train_step, device="cpu"):
     BATCH_SIZE, C, H, W = real.shape
@@ -76,3 +77,9 @@ def generate_examples(gen, steps, truncation=0.7, n=100):
             img = gen(noise, alpha, steps)
             save_image(img * 0.5 + 0.5, f"saved_examples/img_{i}.png")
     gen.train()
+
+def initialize_weights(model):
+    # Initializes weights according to the DCGAN paper
+    for m in model.modules():
+        if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.BatchNorm2d)):
+            nn.init.normal_(m.weight.data, 0.0, 0.02)
