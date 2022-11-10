@@ -1,5 +1,3 @@
-""" Training of ProGAN using WGAN-GP loss"""
-
 from math import log2
 
 import torch
@@ -21,89 +19,61 @@ from utils import (
 )
 from torch.utils.tensorboard import SummaryWriter
 
-
-
-transforms = transforms.Compose(
-    [
-        transforms.Resize(config.IMAGE_SIZE),
-        transforms.ToTensor(),
-        transforms.Normalize(
-            [0.5 for _ in range(config.CHANNELS_IMG)], [0.5 for _ in range(config.CHANNELS_IMG)]
-        ),
-    ]
-)
-
 loader = DataLoader(dataset, batch_size=config.BATCH_SIZE, shuffle=True)
 
 # initialize gen and disc/critic
-gen = Generator(config.Z_DIM, config.CHANNELS_IMG, config.FEATURES_GEN).to(config.DEVICE)
-critic = Discriminator(config.CHANNELS_IMG, config.FEATURES_CRITIC).to(config.DEVICE)
-initialize_weights(gen)
-initialize_weights(critic)
+gen = Generator().to(config.DEVICE)
+dis = Discriminator().to(config.DEVICE)
 
 # initializate optimizer
 opt_gen = optim.RMSprop(gen.parameters(), lr=config.LEARNING_RATE)
-opt_critic = optim.RMSprop(critic.parameters(), lr=config.LEARNING_RATE)
+opt_dis = optim.RMSprop(dis.parameters(), lr=config.LEARNING_RATE)
 
 # for tensorboard plotting
-fixed_noise = torch.randn(32, config.Z_DIM, 1, 1).to(config.DEVICE)
 writer_real = SummaryWriter(f"logs/real")
 writer_fake = SummaryWriter(f"logs/fake")
 step = 0
 
-gen.train()
-critic.train()
-
-for epoch in range(config.NUM_EPOCHS):
+for epoch in range(config.NUM_EPOCHS): # for each epoch
     # Target labels not needed! <3 unsupervised
-    for batch_idx, (data, _) in enumerate(loader):
-        data = data.to(config.DEVICE)
-        cur_batch_size = data.shape[0]
+    for batch_idx, (data1, data2, data3, _) in enumerate(loader):  # for each batch
+        data1 = data1.to(config.DEVICE)
+        data2 = data2.to(config.DEVICE)
+        data3 = data3.to(config.DEVICE)
 
         # Train Critic: max E[critic(real)] - E[critic(fake)]
-        for _ in range(config.CRITIC_ITERATIONS):
-            noise = torch.randn(cur_batch_size, config.Z_DIM, 1, 1).to(config.DEVICE)
-            fake = gen(noise)
-            critic_real = critic(data).reshape(-1)
-            critic_fake = critic(fake).reshape(-1)
-            loss_critic = -(torch.mean(critic_real) - torch.mean(critic_fake))
-            critic.zero_grad()
-            loss_critic.backward(retain_graph=True)
-            opt_critic.step()
-
-            # clip critic weights between -0.01, 0.01
-            for p in critic.parameters():
-                p.data.clamp_(-config.WEIGHT_CLIP, config.WEIGHT_CLIP)
+        for _ in range(config.CRITIC_ITERATIONS): 
+            fake = gen(data1,data2)
+            dis_real = dis(data3)
+            dis_fake = dis(fake)
+            loss_dis = -(dis_real - dis_fake)
+            dis.zero_grad()
+            loss_dis.backward(retain_graph=True)
+            opt_dis.step()
 
         # Train Generator: max E[critic(gen_fake)] <-> min -E[critic(gen_fake)]
-        gen_fake = critic(fake).reshape(-1)
-        loss_gen = -torch.mean(gen_fake)
+        gen_fake = dis(fake)
+        loss_gen = -gen_fake
         gen.zero_grad()
         loss_gen.backward()
         opt_gen.step()
 
         # Print losses occasionally and print to tensorboard
         if batch_idx % 100 == 0 and batch_idx > 0:
-            gen.eval()
-            critic.eval()
             print(
                 f"Epoch [{epoch}/{config.NUM_EPOCHS}] Batch {batch_idx}/{len(loader)} \
-                  Loss D: {loss_critic:.4f}, loss G: {loss_gen:.4f}"
+                  Loss D: {loss_dis:.4f}, loss G: {loss_gen:.4f}"
             )
 
             with torch.no_grad():
-                fake = gen(noise)
-                # take out (up to) 32 examples
+                fake = gen(data1,data2)
                 img_grid_real = torchvision.utils.make_grid(
-                    data[:32], normalize=True
+                    data1, data2 , normalize=True
                 )
                 img_grid_fake = torchvision.utils.make_grid(
-                    fake[:32], normalize=True
+                    fake, normalize=True
                 )
-
                 writer_real.add_image("Real", img_grid_real, global_step=step)
                 writer_fake.add_image("Fake", img_grid_fake, global_step=step)
 
             step += 1
-            gen.train()
-            critic.train()
