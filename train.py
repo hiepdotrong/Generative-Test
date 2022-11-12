@@ -1,27 +1,24 @@
-from math import log2
-
 import torch
 import torch.optim as optim
-import torchvision.datasets as datasets
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
-from tqdm import tqdm
+import torch.nn as nn
 import torchvision
 from Generator import Generator
 from Discriminator import Discriminator 
-from CustomDataset import Face_Data
+from CustomDataset import Custom
 import config
 
 from torch.utils.tensorboard import SummaryWriter
-from Utils import initialize_weights
 
-transforms = transforms.Compose([
+
+transform = transforms.Compose([
     transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    transforms.Normalize(0.5, 0.5, 0.5)
 ])
 
-real = Face_Data(root= dir, transform=transforms)
 
+real = Custom(csv_file= config.CSV, root= config.DATASET, transforms= transform)
+dataloader = torch.utils.data.DataLoader(real, batch_size=32, shuffle=True, pin_memory=True)
 # initialize gen and disc/critic
 gen = Generator().to(config.DEVICE)
 dis = Discriminator().to(config.DEVICE)
@@ -37,13 +34,13 @@ step = 0
 
 for epoch in range(config.NUM_EPOCHS): # for each epoch
     # Target labels not needed! <3 unsupervised
-    for batch_idx, (data1, data2, data3, _) in enumerate(loader):  # for each batch
+    for batch_idx, (data1, data2, data3, _) in enumerate(dataloader):  # for each batch
         data1 = data1.to(config.DEVICE)
         data2 = data2.to(config.DEVICE)
         data3 = data3.to(config.DEVICE)
 
         # Train Critic: max E[critic(real)] - E[critic(fake)]
-        for _ in range(config.CRITIC_ITERATIONS): 
+        for _ in range(config.CRITIC_ITERATIONS):
             fake = gen(data1,data2)
             dis_real = dis(data3)
             dis_fake = dis(fake)
@@ -62,7 +59,7 @@ for epoch in range(config.NUM_EPOCHS): # for each epoch
         # Print losses occasionally and print to tensorboard
         if batch_idx % 100 == 0 and batch_idx > 0:
             print(
-                f"Epoch [{epoch}/{config.NUM_EPOCHS}] Batch {batch_idx}/{len(loader)} \
+                f"Epoch [{epoch}/{config.NUM_EPOCHS}] Batch {batch_idx}/{len(dataloader)} \
                   Loss D: {loss_dis:.4f}, loss G: {loss_gen:.4f}"
             )
 
@@ -80,4 +77,3 @@ for epoch in range(config.NUM_EPOCHS): # for each epoch
 
             step += 1
             gen.train()
-            critic.train()
