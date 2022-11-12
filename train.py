@@ -9,17 +9,18 @@ from tqdm import tqdm
 import torchvision
 from Generator import Generator
 from Discriminator import Discriminator 
-
+from CustomDataset import Face_Data
 import config
-from utils import (
-    gradient_penalty,
-    save_checkpoint,
-    load_checkpoint,
-    initialize_weights,
-)
-from torch.utils.tensorboard import SummaryWriter
 
-loader = DataLoader(dataset, batch_size=config.BATCH_SIZE, shuffle=True)
+from torch.utils.tensorboard import SummaryWriter
+from Utils import initialize_weights
+
+transforms = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
+
+real = Face_Data(root= dir, transform=transforms)
 
 # initialize gen and disc/critic
 gen = Generator().to(config.DEVICE)
@@ -73,7 +74,10 @@ for epoch in range(config.NUM_EPOCHS): # for each epoch
                 img_grid_fake = torchvision.utils.make_grid(
                     fake, normalize=True
                 )
+
                 writer_real.add_image("Real", img_grid_real, global_step=step)
                 writer_fake.add_image("Fake", img_grid_fake, global_step=step)
 
             step += 1
+            gen.train()
+            critic.train()
