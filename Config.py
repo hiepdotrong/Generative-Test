@@ -3,6 +3,7 @@ import torch
 from math import log2
 
 DATASET = ''
+CSV = ''
 CHECKPOINT_GEN = "generator.pth"
 CHECKPOINT_CRITIC = "critic.pth"
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
