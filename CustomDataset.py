@@ -1,25 +1,23 @@
-import glob # đọc đuôi file 
-import PIL.Image as Img
+import os
 from torch.utils.data import Dataset
-from torchvision import transforms
-import torch
-class Face_Data(Dataset): # Dataset template 
-    def __init__(self, root, transform = transforms):
-        self.transform = transform
+from skimage import io
+import pandas as pd
+from PIL import Image
 
-        # Sắp sếp + đọc filename
-        self.real = sorted(glob.glob(root + "/*"))
-        self.fake = torch.tensor(3, 512, 512)
-    def __getitem__(self, index):
-        item_real = self.transform(Img.open(self.real[index % len(self.real)]))
-        item_fake = self.fake
-        return { "1" : item_real, "0" : item_fake}
-
+class Custom(Dataset):
+    def __init__(self, csv_file, root, transforms = None):
+        self.csv = pd.read_csv(csv_file)
+        self.root = root
+        self.transform = transforms
+        
     def __len__(self):
-        return len(self.real)
+        return len(self.csv)
     
-transforms = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-])
+    def __getitem__(self, index):
+        img_path = os.path.join(self.root, self.csv.iloc[index, 0])
+        read = Image.open(img_path)
+                
+        if self.transform:
+            image = self.transform(read)
+            return image
 
