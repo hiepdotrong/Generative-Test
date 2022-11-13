@@ -18,7 +18,7 @@ transform = transforms.Compose([
 
 
 real = Custom(csv_file= config.CSV, root= config.DATASET, transforms= transform)
-dataloader = torch.utils.data.DataLoader(real, batch_size=32, shuffle=True, pin_memory=True)
+dataloader = torch.utils.data.DataLoader(real, batch_size=3, shuffle=True, pin_memory=True)
 # initialize gen and disc/critic
 gen = Generator().to(config.DEVICE)
 dis = Discriminator().to(config.DEVICE)
@@ -34,10 +34,11 @@ step = 0
 
 for epoch in range(config.NUM_EPOCHS): # for each epoch
     # Target labels not needed! <3 unsupervised
-    for batch_idx, (data1, data2, data3, _) in enumerate(dataloader):  # for each batch
-        data1 = data1.to(config.DEVICE)
-        data2 = data2.to(config.DEVICE)
-        data3 = data3.to(config.DEVICE)
+    for batch_idx, data in enumerate(dataloader):  # for each batch
+        data = data.to(config.DEVICE)
+        data1 = data[0]
+        data2 = data[1]
+        real = data[2]
 
         # Train Critic: max E[critic(real)] - E[critic(fake)]
         for _ in range(config.CRITIC_ITERATIONS):
@@ -77,3 +78,4 @@ for epoch in range(config.NUM_EPOCHS): # for each epoch
 
             step += 1
             gen.train()
+    dataloader = torch.utils.data.DataLoader(real, batch_size=3, shuffle=True, pin_memory=True)
